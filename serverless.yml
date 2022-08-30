@@ -1,0 +1,49 @@
+service: upload-to-s3-and-postprocess
+
+frameworkVersion: ">=1.1.0"
+
+plugins:
+  - serverless-deployment-bucket
+  - serverless-scriptable-plugin
+
+custom:
+  scriptable:
+    # add custom hooks
+    hooks:
+      after:aws:common:validate:validate: cfn-guard validate -r cfn.guard -d .serverless/cloudformation-template-update-stack.json
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - s3:*
+      Resource: "*"
+  environment:
+    S3_INPUT_BUCKET: ady-${self:service}-input
+    S3_OUTPUT_BUCKET: ady-${self:service}-output
+  deploymentBucket:
+    name: ady-deployment-bucket
+    serverSideEncryption: AES256
+
+functions:
+  replicate:
+    handler: handler.replicate
+    environment:
+      S3_OUTPUT_BUCKET: ${self:provider.environment.S3_OUTPUT_BUCKET}
+    events:
+      - s3:
+          bucket: ${self:provider.environment.S3_INPUT_BUCKET}
+          existing: true
+
+resources:
+  Resources:
+    inputBucket:
+      Type: "AWS::S3::Bucket"
+      Properties:
+        BucketName: ${self:provider.environment.S3_INPUT_BUCKET}
+    outputBucket:
+      Type: "AWS::S3::Bucket"
+      Properties:
+        BucketName: ${self:provider.environment.S3_OUTPUT_BUCKET}

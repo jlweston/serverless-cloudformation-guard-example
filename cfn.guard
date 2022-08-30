@@ -1,0 +1,22 @@
+let s3_buckets = Resources.*[ Type == 'AWS::S3::Bucket']
+
+# Skip the checks if there are no S3 buckets present
+rule S3_BUCKET_NAMING_CONVENTION when %s3_buckets !empty {
+    %s3_buckets.Properties.BucketName == /^ady/
+    <<
+        Violation: S3 Bucket naming invalid.
+        Fix: S3 Bucket name must be set and begin with 'ady-'.
+    >>
+}
+
+rule S3_BUCKET_PUBLIC_READ_PROHIBITED when %s3_buckets !empty {
+    %s3_buckets.Properties.PublicAccessBlockConfiguration exists
+    %s3_buckets.Properties.PublicAccessBlockConfiguration.BlockPublicAcls == true
+    %s3_buckets.Properties.PublicAccessBlockConfiguration.BlockPublicPolicy == true
+    %s3_buckets.Properties.PublicAccessBlockConfiguration.IgnorePublicAcls == true
+    %s3_buckets.Properties.PublicAccessBlockConfiguration.RestrictPublicBuckets == true
+    <<
+        Violation: S3 Bucket Public Write Access controls need to be restricted.
+        Fix: Set S3 Bucket PublicAccessBlockConfiguration properties for BlockPublicAcls, BlockPublicPolicy, IgnorePublicAcls, RestrictPublicBuckets parameters to true.
+    >>
+}
